@@ -446,6 +446,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   toolTip: {fileID: 730358656954094373}
+  TimeFactor: 1
   tleFile: {fileID: 4900000, guid: a9303d931542b8d4386f3d21573f841c, type: 3}
   Prefab: {fileID: 834588972034905566, guid: 61ba4d05a0cd9d845bf69c6e795476e9, type: 3}
 --- !u!4 &1429490253

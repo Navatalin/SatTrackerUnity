@@ -18,6 +18,7 @@ public class satObjData : MonoBehaviour {
     public Quaternion rot;
     public Tle tle;
     public string satName;
+    public DateTime startTime;
 
     private double Altitude;
     private double Latitude;
@@ -42,13 +43,14 @@ public class satObjData : MonoBehaviour {
     public void updatePos(){
         if(tle != null){
             var sat = new Satellite(tle);
-            var eci = sat.Predict();
+            var eci = sat.Predict(startTime.AddSeconds(Time.time));
             this.Altitude = eci.ToGeodetic().Altitude;
             this.Latitude = eci.ToGeodetic().Latitude.Degrees;
             this.Longitude = eci.ToGeodetic().Longitude.Degrees;
             this.Velocity = new Vector3((float)eci.Velocity.X,(float)eci.Velocity.Y,(float)eci.Velocity.Z);
             pos = new Vector3((float)eci.Position.X/100, (float)eci.Position.Z/100, (float)eci.Position.Y/100);
-            this.transform.position = pos;
+            //this.transform.position = pos;
+            this.transform.position = Vector3.Lerp(this.transform.position, pos, 0.3f);
         }
     }
 
@@ -71,15 +73,19 @@ public class satObjData : MonoBehaviour {
 public class SatGenerator : MonoBehaviour
 {
     [SerializeField] ToolTip toolTip;
+    [Range(1,10)] public float TimeFactor;
     public TextAsset tleFile;
     private List<GameObject> sats;
     private List<Tle> tleData;
     private Thread branchUpdateThread;
     public GameObject Prefab;
 
+    private DateTime startTime;
+
     // Start is called before the first frame update
     void Start()
     {      
+        startTime = DateTime.Now;
         Debug.Log("Loading Sats");
         tleData = GenerateTles();
         GetSats();
@@ -96,6 +102,7 @@ public class SatGenerator : MonoBehaviour
                 satGameObjectData.pos =  new Vector3(0.5f, 0.5f,0.5f);
                 satGameObjectData.rot = Quaternion.identity;
                 satGameObjectData.toolTip = toolTip;
+                satGameObjectData.startTime = startTime;
                 sats.Add(satGameObject);
             }
             catch(Exception ex){
@@ -122,11 +129,7 @@ public class SatGenerator : MonoBehaviour
         return tles;
     }
 
-    // Update is called once per frame
-    void Update()
-    {
+    private void Update() {
+        Time.timeScale = TimeFactor;
     }
-    private void FixedUpdate() {
-    }
-
 }
