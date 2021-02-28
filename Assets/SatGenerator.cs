@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 public class satObjData : MonoBehaviour {
     [SerializeField] public ToolTip toolTip;
+    [SerializeField] public OrbitEllipse orbitDisplay;
     public Vector3 pos;
     public Vector3 scale;
     public Quaternion rot;
@@ -65,15 +66,18 @@ public class satObjData : MonoBehaviour {
     }
     private void OnMouseEnter() {
         toolTip.DisplayInfo(this);
+        orbitDisplay.SetAxis(this.pos.x, this.pos.y);
     }
     private void OnMouseExit() {
-        toolTip.HideInfo();    
+        toolTip.HideInfo();
+        orbitDisplay.HideOrbit();    
     }
 }
 public class SatGenerator : MonoBehaviour
 {
     [SerializeField] ToolTip toolTip;
     [Range(1,10)] public float TimeFactor;
+    [SerializeField] OrbitEllipse orbitDisplay;
     public TextAsset tleFile;
     private List<GameObject> sats;
     private List<Tle> tleData;
@@ -103,6 +107,7 @@ public class SatGenerator : MonoBehaviour
                 satGameObjectData.rot = Quaternion.identity;
                 satGameObjectData.toolTip = toolTip;
                 satGameObjectData.startTime = startTime;
+                satGameObjectData.orbitDisplay = orbitDisplay;
                 sats.Add(satGameObject);
             }
             catch(Exception ex){
