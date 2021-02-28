@@ -11,18 +11,26 @@ using SGPdotNET.TLE;
 using System.Threading;
 using System.Threading.Tasks;
 
-public class satObjData {
+public class satObjData : MonoBehaviour {
+    [SerializeField] public ToolTip toolTip;
     public Vector3 pos;
     public Vector3 scale;
     public Quaternion rot;
     public Tle tle;
     public string satName;
-    public Matrix4x4 matrix{
-        get{
-            return Matrix4x4.TRS(pos, rot, scale);
-        }
+
+    private double Altitude;
+    private double Latitude;
+    private double Longitude;
+    private Vector3 Velocity;
+
+    private void Update() {
+        updatePos();
     }
 
+    private void FixedUpdate() {
+        
+    }
     public satObjData(string satName,Tle tle, Vector3 scale, Quaternion rot){
         this.satName = satName;
         this.tle = tle;
@@ -32,21 +40,42 @@ public class satObjData {
     }
 
     public void updatePos(){
-        var sat = new Satellite(tle);
-        var eci = sat.Predict();
-        pos = new Vector3((float)eci.Position.X/100, (float)eci.Position.Z/100, (float)eci.Position.Y/100);
+        if(tle != null){
+            var sat = new Satellite(tle);
+            var eci = sat.Predict();
+            this.Altitude = eci.ToGeodetic().Altitude;
+            this.Latitude = eci.ToGeodetic().Latitude.Degrees;
+            this.Longitude = eci.ToGeodetic().Longitude.Degrees;
+            this.Velocity = new Vector3((float)eci.Velocity.X,(float)eci.Velocity.Y,(float)eci.Velocity.Z);
+            pos = new Vector3((float)eci.Position.X/100, (float)eci.Position.Z/100, (float)eci.Position.Y/100);
+            this.transform.position = pos;
+        }
     }
 
+    public string GetPositionData(){
+        return $"Latitude: {this.Latitude.ToString("#.##")}°\nLongitude: {this.Longitude.ToString("#.##")}°\nX: {this.pos.x.ToString("#.##")} Y: {this.pos.y.ToString("#.##")} Z: {this.pos.z.ToString("#.##")}\n";
+    }
+    public string GetAltitudeData(){
+        return $"Altitude: {this.Altitude.ToString("#.##")} km\n";
+    }
+    public string GetVelocityData(){
+        return $"Velocity: {Math.Abs(this.Velocity.magnitude).ToString("#.##")} km\\s\n";
+    }
+    private void OnMouseEnter() {
+        toolTip.DisplayInfo(this);
+    }
+    private void OnMouseExit() {
+        toolTip.HideInfo();    
+    }
 }
 public class SatGenerator : MonoBehaviour
 {
+    [SerializeField] ToolTip toolTip;
     public TextAsset tleFile;
-    public Mesh objectMesh;
-    public Material mat;
-    private List<List<satObjData>> batches;
-    private List<satObjData> sats;
+    private List<GameObject> sats;
     private List<Tle> tleData;
     private Thread branchUpdateThread;
+    public GameObject Prefab;
 
     // Start is called before the first frame update
     void Start()
@@ -54,45 +83,25 @@ public class SatGenerator : MonoBehaviour
         Debug.Log("Loading Sats");
         tleData = GenerateTles();
         GetSats();
-        Debug.Log("Starting Batches");
-        GenerateBatches();
-        Debug.Log("Batches finished");
-        Debug.Log($"Batch size: {batches.Count}");
 
-        branchUpdateThread = new Thread (UpdateBatches);
-        branchUpdateThread.Start();
     }
-    public void GenerateBatches(){
-        int batchIndexNum = 0;
-        List<satObjData> currBatch = new List<satObjData>();
-        batches = new List<List<satObjData>>();
-        foreach(var sat in sats)
-        {
-            currBatch.Add(sat);
-            batchIndexNum++;
-            if(batchIndexNum >= 1000)
-            {
-                batches.Add(currBatch);
-                currBatch = new List<satObjData>();
-                batchIndexNum = 0;
-            }
-        }
-        batches.Add(currBatch);
-    }
+   
     public void GetSats(){
-        var satObjDataList = new List<satObjData>();
-
         foreach(var tle in tleData){
             try{
-                var satData = new satObjData(tle.Name, tle, new Vector3(0.5f, 0.5f,0.5f), Quaternion.identity);
-                satObjDataList.Add(satData);
+                var satGameObject = Instantiate(Prefab,new Vector3(0,0,0),Quaternion.identity);
+                var satGameObjectData = satGameObject.AddComponent<satObjData>();
+                satGameObjectData.name = tle.Name;
+                satGameObjectData.tle = tle;
+                satGameObjectData.pos =  new Vector3(0.5f, 0.5f,0.5f);
+                satGameObjectData.rot = Quaternion.identity;
+                satGameObjectData.toolTip = toolTip;
+                sats.Add(satGameObject);
             }
             catch(Exception ex){
-                print($"Problem generating satellite position for {tle.Name} error: {ex.Message}");
+                //print($"Problem generating satellite position for {tle.Name} error: {ex.Message}");
             }
         }
-
-        sats = satObjDataList;
     }
     private List<Tle> GenerateTles(){
         List<Tle> tles = new List<Tle>();
@@ -113,29 +122,9 @@ public class SatGenerator : MonoBehaviour
         return tles;
     }
 
-    private void UpdateBatches()
-    {
-        
-        foreach(var batch in batches)
-        {
-            foreach(var satobj in batch)
-            {
-                satobj.updatePos();
-            }
-        }
-    }
-
     // Update is called once per frame
     void Update()
     {
-        if(!branchUpdateThread.IsAlive){
-            branchUpdateThread = new Thread ( UpdateBatches );
-            branchUpdateThread.Start();
-        }
-        foreach(var batch in batches)
-        {
-            Graphics.DrawMeshInstanced(objectMesh,0, mat,batch.Select((a) => a.matrix).ToList());
-        }
     }
     private void FixedUpdate() {
     }
